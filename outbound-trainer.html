@@ -442,44 +442,82 @@ IMPORTANT: Don't be rude, but don't make it easy. The VA must earn your trust an
             // SYSTEM PROMPT FOR AI ASSISTANT - OUTBOUND SCENARIO
             function getSystemPrompt(difficulty) {
                 const persona = difficulties[difficulty];
-                return `⚠️ CRITICAL: YOU ARE THE PATIENT RECEIVING A PHONE CALL. YOU ARE NOT THE VA. YOU ARE NOT THE RECEPTIONIST.
+                return `🚨 CRITICAL SYSTEM INSTRUCTIONS - FOLLOW EXACTLY:
 
-The person speaking to you is the VA (Virtual Assistant) from a chiropractic office. They are calling YOU.
+=== LANGUAGE RULE (ABSOLUTE) ===
+YOU MUST SPEAK ONLY IN ENGLISH.
+DO NOT use Spanish, Portuguese, or ANY other language.
+DO NOT say "Obrigado", "Tchau", "Gracias", or any non-English words.
+ONLY English words allowed. Period.
 
-NEVER say things like:
-❌ "Thank you for calling..."
-❌ "How can I help you today?"
-❌ "This is [name] from [office]..."
-❌ Any VA/receptionist greeting
+=== YOUR ROLE ===
+YOU ARE THE PATIENT RECEIVING A PHONE CALL.
+The person speaking to you is the VA (Virtual Assistant) from a chiropractic office calling YOU.
 
-INSTEAD, when the VA first greets you, respond like someone answering their phone:
-✅ "Hello?"
-✅ "Hi, this is [your name]"
-✅ "Yes, speaking"
-✅ "Oh hi, yes?"
+=== WHAT YOU CANNOT DO ===
+❌ DO NOT greet like a receptionist ("Thank you for calling")
+❌ DO NOT speak any language except English
+❌ DO NOT offer or suggest appointment times
+❌ DO NOT volunteer your schedule
+❌ DO NOT say things like "I can do Tuesday at 3pm"
+❌ DO NOT lead the conversation
+
+=== WHAT YOU MUST DO ===
+✅ Answer phone naturally: "Hello?" or "Hi, this is ${persona.name === 'Jennifer Rodriguez' ? 'Jennifer' : 'Michael'}"
+✅ SPEAK ONLY IN ENGLISH - every single word
+✅ WAIT for VA to offer appointment times
+✅ ONLY respond to times VA suggests (accept or decline)
+✅ Keep responses SHORT (1-2 sentences)
+✅ Let VA control the conversation
 
 ${persona.personality}
 
-ABSOLUTE RULES:
-1. YOU ARE RECEIVING THE CALL - You did NOT call them, they called YOU
-2. The VA is trying to book you for an appointment
-3. Respond naturally as someone who answered their phone
-4. Keep responses SHORT (1-2 sentences max)
-5. Let the VA guide the conversation
-6. React to what they say, don't lead
-7. Be a normal person, not an AI assistant
+=== APPOINTMENT TIME HANDLING ===
+WRONG ❌: "I'm available Tuesday at 3pm" (don't volunteer times)
+WRONG ❌: "How about next week?" (don't suggest alternatives)
+RIGHT ✅: VA offers "Monday at 10am or Wednesday at 2pm"
+RIGHT ✅: You respond "Monday at 10am works" or "Wednesday is better"
 
-FIRST RESPONSE TEMPLATE:
-When you first hear the VA speak, say ONLY: "Hello?" or "Hi, this is ${persona.name === 'Jennifer Rodriguez' ? 'Jennifer' : 'Michael'}"
+=== LANGUAGE ENFORCEMENT ===
+If you catch yourself about to use a non-English word, STOP and use English instead.
+"Thank you, goodbye" NOT "Obrigado, tchau"
+"See you Monday" NOT "Vejo vocês na quarta-feira"
 
-Then wait for them to explain who they are and why they're calling.
+Remember:
+1. YOU ARE THE PATIENT (not the VA)
+2. ENGLISH ONLY - not a single word in any other language
+3. WAIT for VA to offer times - never volunteer your own
+4. Keep it natural and brief
 
-BOOKING DECISION:
-- Book if VA is professional and answers your questions well
-- Don't book if VA is pushy, vague, or unprofessional
-
-Remember: YOU ARE THE PATIENT. The person talking is the VA calling you. Answer like a normal person answering their phone.`;
+FIRST RESPONSE: "Hello?" or "Hi, this is ${persona.name === 'Jennifer Rodriguez' ? 'Jennifer' : 'Michael'}"`;
             }
+
+            // PLAY PHONE RINGING SOUND
+            const playPhoneRing = async () => {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Create 3 rings with pauses
+                for (let ring = 0; ring < 3; ring++) {
+                    // Create ring sound (two beeps)
+                    for (let beep = 0; beep < 2; beep++) {
+                        const oscillator = audioContext.createOscillator();
+                        const gainNode = audioContext.createGain();
+                        
+                        oscillator.connect(gainNode);
+                        gainNode.connect(audioContext.destination);
+                        
+                        oscillator.frequency.value = 480; // Ring tone frequency
+                        gainNode.gain.value = 0.3; // Volume
+                        
+                        const now = audioContext.currentTime + (ring * 2) + (beep * 0.2);
+                        oscillator.start(now);
+                        oscillator.stop(now + 0.15);
+                    }
+                }
+                
+                // Wait for all rings to complete (3 rings * 2 seconds each)
+                await new Promise(resolve => setTimeout(resolve, 6000));
+            };
 
             // START CALL
             const startCall = async () => {
@@ -497,19 +535,16 @@ Remember: YOU ARE THE PATIENT. The person talking is the VA calling you. Answer 
                 }
 
                 setGameState('calling');
-                setMessages([]);
+                setMessages([{ type: 'system', text: '📞 Calling patient... *ring ring ring*' }]);
                 conversationHistoryRef.current = [];
                 setCurrentStatus('idle');
-                setCallStartTime(new Date());
 
                 try {
-                    // Play phone ring sound (3 rings)
-                    setMessages(prev => [...prev, { type: 'system', text: '📞 Calling patient... *ring ring*' }]);
-                    
-                    // Wait 3 seconds for "rings"
-                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    // Play actual phone ringing sound
+                    await playPhoneRing();
                     
                     setMessages(prev => [...prev, { type: 'system', text: '✅ Patient answered! Start speaking...' }]);
+                    setCallStartTime(new Date());
                     
                     // Initialize Audio Context
                     audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
@@ -742,7 +777,8 @@ Remember: YOU ARE THE PATIENT. The person talking is the VA calling you. Answer 
 
             // END CALL AND SCORE
             const endCall = async () => {
-                setCallEndTime(new Date());
+                const endTime = new Date();
+                setCallEndTime(endTime);
                 
                 // Close WebSocket
                 if (wsRef.current) {
@@ -755,7 +791,186 @@ Remember: YOU ARE THE PATIENT. The person talking is the VA calling you. Answer 
                 }
 
                 setCurrentStatus('idle');
+                
+                // Show scoring screen immediately with loading state
                 setGameState('scoring');
+                setScoreData(null); // Set to null initially
+
+                console.log('🔄 Starting evaluation...');
+                console.log('Conversation history:', conversationHistoryRef.current);
+
+                // Get AI scoring
+                try {
+                    // Get API key from localStorage
+                    const apiKey = localStorage.getItem('openai_api_key');
+                    console.log('API Key found:', apiKey ? 'Yes' : 'No');
+                    
+                    if (!apiKey) {
+                        console.error('❌ No API key in localStorage');
+                        throw new Error('API key not found in localStorage. Please refresh and enter your API key.');
+                    }
+
+                    const scoringPrompt = `Analyze this OUTBOUND follow-up call conversation and provide detailed scoring.
+
+CONVERSATION TRANSCRIPT:
+${conversationHistoryRef.current.map(msg => `${msg.role === 'user' ? 'VA' : 'Patient'}: ${msg.text}`).join('\n')}
+
+CONTEXT:
+- Office: ${officeName}
+- Doctor: Dr. ${doctorName}
+- Scenario: VA calling patient who submitted online inquiry form
+- Difficulty: ${difficulty}
+
+IMPORTANT: Evaluate based on what actually happened in the conversation above.
+
+SCORE THE FOLLOWING 7 CHECKPOINTS (0-10 points each):
+
+1. PROFESSIONAL INTRODUCTION (0-10):
+   - Did VA clearly state their name and the office name?
+   - Was the greeting professional and friendly?
+   - Did they verify they were speaking with the right person?
+
+2. HEALTH HISTORY INQUIRY (0-10):
+   - Did VA ask about patient's health concerns or pain?
+   - Did they show genuine interest in understanding the situation?
+
+3. PURPOSE STATED (0-10):
+   - Did VA clearly explain they were following up on the patient's inquiry form?
+   - Was the purpose of the call immediately clear?
+
+4. SPECIFIC APPOINTMENT OPTIONS (0-10):
+   - Did VA propose specific dates and times (not just "what works for you")?
+   - Did they offer multiple options?
+
+5. OBJECTION HANDLING (0-10):
+   - Did VA address patient questions confidently?
+   - How well did they handle cost concerns or questions?
+
+6. PAYMENT COLLECTION (0-10):
+   - Did VA clearly explain the initial payment amount and what it includes?
+   - Did they explain the value?
+
+7. CLOSING & CONFIRMATION (0-10):
+   - Did VA confirm the appointment details?
+   - Did they explain next steps?
+
+BONUS POINTS (up to 30 points total):
+- Communication Excellence (0-10): Clarity, pace, tone
+- Professionalism (0-10): Courtesy, confidence, empathy
+- Problem Solving (0-10): Flexibility, handling objections
+
+ALSO DETERMINE:
+- Did the patient ultimately BOOK the appointment? (true/false)
+
+Return ONLY a valid JSON object (no markdown, no backticks):
+{
+  "scores": {
+    "introduction": {"score": 0, "note": ""},
+    "healthHistory": {"score": 0, "note": ""},
+    "purposeStated": {"score": 0, "note": ""},
+    "appointmentOptions": {"score": 0, "note": ""},
+    "objectionHandling": {"score": 0, "note": ""},
+    "paymentCollection": {"score": 0, "note": ""},
+    "closingConfirmation": {"score": 0, "note": ""}
+  },
+  "bonus": 0,
+  "bonusBreakdown": {"communication": 0, "professionalism": 0, "problemSolving": 0},
+  "totalScore": 0,
+  "patientBooked": false,
+  "summary": "",
+  "positives": [],
+  "improvements": [],
+  "criticalMisses": []
+}`;
+
+                    console.log('📡 Calling OpenAI for scoring...');
+
+                    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${apiKey}`
+                        },
+                        body: JSON.stringify({
+                            model: 'gpt-4o',
+                            messages: [
+                                {
+                                    role: 'system',
+                                    content: 'You are an expert chiropractic office trainer. Return ONLY valid JSON, no markdown.'
+                                },
+                                {
+                                    role: 'user',
+                                    content: scoringPrompt
+                                }
+                            ],
+                            response_format: { type: 'json_object' },
+                            temperature: 0.3
+                        })
+                    });
+
+                    console.log('Response status:', response.status);
+
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('API Error Response:', errorText);
+                        throw new Error(`OpenAI API returned ${response.status}: ${errorText}`);
+                    }
+
+                    const data = await response.json();
+                    console.log('✅ Received scoring data:', data);
+                    
+                    const scoring = JSON.parse(data.choices[0].message.content);
+                    console.log('✅ Parsed scoring:', scoring);
+                    
+                    // Set the score data
+                    setScoreData(scoring);
+
+                    // Save call log to localStorage
+                    const callDuration = callStartTime && endTime ? 
+                        Math.floor((endTime - callStartTime) / 1000) : 0;
+                    
+                    saveCallLog({
+                        difficulty: difficulty,
+                        score: scoring.totalScore,
+                        patientBooked: scoring.patientBooked,
+                        callDuration: `${Math.floor(callDuration / 60)}m ${callDuration % 60}s`,
+                        officeName: officeName,
+                        doctorName: doctorName,
+                        checkpointScores: scoring.scores,
+                        bonusPoints: scoring.bonus
+                    });
+
+                    console.log('✅ Scoring complete and saved');
+
+                } catch (error) {
+                    console.error('❌ Error scoring call:', error);
+                    console.error('Error details:', error.message);
+                    
+                    // Provide default scoring that's guaranteed to work
+                    const fallbackScoring = {
+                        scores: {
+                            introduction: {score: 5, note: 'Could not evaluate - scoring error'},
+                            healthHistory: {score: 5, note: 'Could not evaluate - scoring error'},
+                            purposeStated: {score: 5, note: 'Could not evaluate - scoring error'},
+                            appointmentOptions: {score: 5, note: 'Could not evaluate - scoring error'},
+                            objectionHandling: {score: 5, note: 'Could not evaluate - scoring error'},
+                            paymentCollection: {score: 5, note: 'Could not evaluate - scoring error'},
+                            closingConfirmation: {score: 5, note: 'Could not evaluate - scoring error'}
+                        },
+                        bonus: 0,
+                        bonusBreakdown: {communication: 0, professionalism: 0, problemSolving: 0},
+                        totalScore: 35,
+                        patientBooked: false,
+                        summary: `Scoring failed: ${error.message}. Please check your API key and try again.`,
+                        positives: ['Call completed'],
+                        improvements: ['Fix API key issue and try again'],
+                        criticalMisses: []
+                    };
+                    
+                    setScoreData(fallbackScoring);
+                    console.log('⚠️ Using fallback scoring');
+                }
+            };
 
                 // Get AI scoring
                 try {
@@ -1161,8 +1376,27 @@ Return a JSON object with this structure:
 
             // SCORING SCREEN
             if (gameState === 'scoring') {
-                // Safety check - if no scoreData, show error and allow retry
-                if (!scoreData || !scoreData.scores) {
+                // LOADING STATE - show while waiting for scoring
+                if (!scoreData) {
+                    return (
+                        <div className="container">
+                            <div className="header">
+                                <h1>⏳ Evaluating Your Call...</h1>
+                                <p>Please wait</p>
+                            </div>
+                            <div className="content">
+                                <div style={{padding: '40px', textAlign: 'center'}}>
+                                    <div style={{fontSize: '48px', marginBottom: '20px'}}>🔄</div>
+                                    <p style={{fontSize: '18px', marginBottom: '10px'}}>Analyzing conversation...</p>
+                                    <p style={{fontSize: '14px', color: '#666'}}>This usually takes 5-10 seconds</p>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                }
+                
+                // ERROR STATE - if scoreData exists but has no scores
+                if (!scoreData.scores) {
                     return (
                         <div className="container">
                             <div className="header">
@@ -1172,11 +1406,12 @@ Return a JSON object with this structure:
                             <div className="content">
                                 <div style={{padding: '20px', background: '#ffebee', borderRadius: '10px', marginBottom: '20px'}}>
                                     <p><strong>The scoring system encountered an error.</strong></p>
+                                    <p style={{marginTop: '10px'}}>Error: {scoreData.summary || 'Unknown error'}</p>
                                     <p style={{marginTop: '10px'}}>This usually happens if:</p>
                                     <ul style={{marginLeft: '20px', marginTop: '10px'}}>
                                         <li>The call was too short</li>
                                         <li>There was a connection issue</li>
-                                        <li>The AI couldn't analyze the conversation</li>
+                                        <li>Your API key is invalid or out of credits</li>
                                     </ul>
                                 </div>
                                 <button className="start-btn" onClick={resetGame}>
@@ -1187,6 +1422,7 @@ Return a JSON object with this structure:
                     );
                 }
                 
+                // NORMAL SCORING DISPLAY
                 const checkpointTotal = Object.values(scoreData.scores).reduce((sum, c) => sum + c.score, 0);
                 const passed = scoreData.totalScore >= 70;
                 
