@@ -89,7 +89,7 @@
             background: #f5f5f5;
             border-radius: 15px;
             padding: 20px;
-            max-height: 350px;
+            max-height: 500px;
             overflow-y: auto;
             margin-bottom: 20px;
         }
@@ -330,9 +330,25 @@
             const [callStartTime, setCallStartTime] = useState(null);
             const [callEndTime, setCallEndTime] = useState(null);
             
+            // API Key state - check localStorage reactively
+            const [apiKeyInput, setApiKeyInput] = useState(() => {
+                return localStorage.getItem('openai_api_key') || '';
+            });
+            const [showApiKeyPrompt, setShowApiKeyPrompt] = useState(() => {
+                return !localStorage.getItem('openai_api_key');
+            });
+            
             const wsRef = useRef(null);
             const audioContextRef = useRef(null);
             const conversationHistoryRef = useRef([]);
+            const chatContainerRef = useRef(null);
+
+            // Auto-scroll chat to bottom when new messages arrive
+            useEffect(() => {
+                if (chatContainerRef.current) {
+                    chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+                }
+            }, [messages]);
 
             // PASSWORD CHECK
             const handlePasswordSubmit = (e) => {
@@ -472,6 +488,14 @@ Remember: YOU ARE THE PATIENT. The person talking is the VA calling you. Answer 
                     return;
                 }
 
+                // Check for API key
+                const apiKey = localStorage.getItem('openai_api_key');
+                if (!apiKey) {
+                    alert('Please set your API key first');
+                    setShowApiKeyPrompt(true);
+                    return;
+                }
+
                 setGameState('calling');
                 setMessages([]);
                 conversationHistoryRef.current = [];
@@ -479,16 +503,16 @@ Remember: YOU ARE THE PATIENT. The person talking is the VA calling you. Answer 
                 setCallStartTime(new Date());
 
                 try {
+                    // Play phone ring sound (3 rings)
+                    setMessages(prev => [...prev, { type: 'system', text: '📞 Calling patient... *ring ring*' }]);
+                    
+                    // Wait 3 seconds for "rings"
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    
+                    setMessages(prev => [...prev, { type: 'system', text: '✅ Patient answered! Start speaking...' }]);
+                    
                     // Initialize Audio Context
                     audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-
-                    // Get OpenAI API Key
-                    const apiKey = prompt('Enter your OpenAI API Key (starts with sk-):');
-                    if (!apiKey) {
-                        alert('API key is required');
-                        setGameState('setup');
-                        return;
-                    }
 
                     // Connect to OpenAI Realtime API
                     const ws = new WebSocket(
@@ -501,7 +525,7 @@ Remember: YOU ARE THE PATIENT. The person talking is the VA calling you. Answer 
                     ws.onopen = () => {
                         console.log('Connected to OpenAI Realtime API');
                         
-                        // Configure session
+                        // Configure session with longer silence duration to prevent interruptions
                         ws.send(JSON.stringify({
                             type: 'session.update',
                             session: {
@@ -515,9 +539,9 @@ Remember: YOU ARE THE PATIENT. The person talking is the VA calling you. Answer 
                                 },
                                 turn_detection: {
                                     type: 'server_vad',
-                                    threshold: 0.5,
-                                    prefix_padding_ms: 300,
-                                    silence_duration_ms: 500
+                                    threshold: 0.7,  // Increased from 0.5 - more confident before detecting speech end
+                                    prefix_padding_ms: 500,  // Increased from 300 - more buffer before speech
+                                    silence_duration_ms: 1500  // Increased from 1200 - wait longer for VA to finish
                                 },
                                 temperature: 0.8,
                                 max_response_output_tokens: 4096
@@ -572,6 +596,7 @@ Remember: YOU ARE THE PATIENT. The person talking is the VA calling you. Answer 
 
                     case 'conversation.item.input_audio_transcription.completed':
                         const userText = event.transcript;
+                        console.log('📝 YOU (VA) SAID:', userText);
                         setMessages(prev => [...prev, { type: 'staff', text: userText }]);
                         conversationHistoryRef.current.push({ role: 'user', text: userText });
                         setInterimText('');
@@ -587,6 +612,7 @@ Remember: YOU ARE THE PATIENT. The person talking is the VA calling you. Answer 
 
                     case 'response.audio_transcript.done':
                         const assistantText = event.transcript;
+                        console.log('🤖 PATIENT SAID:', assistantText);
                         setMessages(prev => [...prev, { type: 'patient', text: assistantText }]);
                         conversationHistoryRef.current.push({ role: 'assistant', text: assistantText });
                         setInterimText('');
@@ -933,6 +959,61 @@ Return a JSON object with this structure:
                 );
             }
 
+            // API KEY PROMPT SCREEN
+            if (showApiKeyPrompt) {
+                return (
+                    <div className="container">
+                        <div className="header">
+                            <h1>🔑 OpenAI API Key Required</h1>
+                            <p>One-time setup</p>
+                        </div>
+                        <div className="content">
+                            <div style={{padding: '15px', background: '#fff3cd', borderRadius: '10px', marginBottom: '20px', fontSize: '14px'}}>
+                                <strong>⚠️ You only need to do this once!</strong>
+                                <ul style={{marginTop: '10px', marginLeft: '20px', textAlign: 'left'}}>
+                                    <li>Get your API key from: <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com/api-keys</a></li>
+                                    <li>API keys start with <strong>"sk-"</strong> or <strong>"sk-proj-"</strong></li>
+                                    <li>Your key will be saved to this browser</li>
+                                </ul>
+                            </div>
+                            <div className="form-group">
+                                <label>OpenAI API Key:</label>
+                                <input
+                                    type="password"
+                                    value={apiKeyInput}
+                                    onChange={(e) => setApiKeyInput(e.target.value)}
+                                    placeholder="sk-proj-..."
+                                    autoFocus
+                                />
+                            </div>
+                            <button 
+                                className="start-btn" 
+                                onClick={() => {
+                                    if (apiKeyInput && apiKeyInput.startsWith('sk-')) {
+                                        localStorage.setItem('openai_api_key', apiKeyInput);
+                                        setShowApiKeyPrompt(false);
+                                    } else {
+                                        alert('Please enter a valid OpenAI API key (starts with sk-)');
+                                    }
+                                }}
+                                disabled={!apiKeyInput}
+                            >
+                                💾 Save & Continue
+                            </button>
+                            {localStorage.getItem('openai_api_key') && (
+                                <button 
+                                    className="start-btn" 
+                                    onClick={() => setShowApiKeyPrompt(false)}
+                                    style={{marginTop: '10px', background: '#757575'}}
+                                >
+                                    Skip (Use Existing Key)
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                );
+            }
+
             // SETUP SCREEN
             if (gameState === 'setup') {
                 return (
@@ -945,6 +1026,12 @@ Return a JSON object with this structure:
                             <div style={{marginBottom: '25px', padding: '15px', background: '#e8f5e9', borderRadius: '10px'}}>
                                 <strong>✓ Logged in as:</strong> {currentUser.name}
                                 {currentUser.office && <span> - {currentUser.office}</span>}
+                                <button 
+                                    onClick={() => setShowApiKeyPrompt(true)}
+                                    style={{float: 'right', background: '#757575', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px'}}
+                                >
+                                    🔑 Change API Key
+                                </button>
                             </div>
 
                             <div className="form-group">
@@ -1039,7 +1126,7 @@ Return a JSON object with this structure:
                                 </div>
                             )}
                             
-                            <div className="chat-container">
+                            <div className="chat-container" ref={chatContainerRef}>
                                 {messages.map((msg, i) => (
                                     <div key={i} className={`message ${msg.type}`}>
                                         {msg.type === 'staff' && <strong>You: </strong>}
