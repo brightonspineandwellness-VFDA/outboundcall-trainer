@@ -539,9 +539,9 @@ Remember: YOU ARE THE PATIENT. The person talking is the VA calling you. Answer 
                                 },
                                 turn_detection: {
                                     type: 'server_vad',
-                                    threshold: 0.7,  // Increased from 0.5 - more confident before detecting speech end
-                                    prefix_padding_ms: 500,  // Increased from 300 - more buffer before speech
-                                    silence_duration_ms: 1500  // Increased from 1200 - wait longer for VA to finish
+                                    threshold: 0.8,  // Very high threshold - need to be very sure speech ended
+                                    prefix_padding_ms: 600,  // More buffer
+                                    silence_duration_ms: 5000  // 5 FULL SECONDS of silence before AI responds
                                 },
                                 temperature: 0.8,
                                 max_response_output_tokens: 4096
@@ -586,24 +586,28 @@ Remember: YOU ARE THE PATIENT. The person talking is the VA calling you. Answer 
                         break;
 
                     case 'input_audio_buffer.speech_started':
+                        console.log('🎤 Speech detected - You started speaking');
                         setCurrentStatus('listening');
                         setInterimText('');
                         break;
 
                     case 'input_audio_buffer.speech_stopped':
+                        console.log('⏸️ Speech ended - Processing what you said...');
                         setCurrentStatus('thinking');
                         break;
 
                     case 'conversation.item.input_audio_transcription.completed':
                         const userText = event.transcript;
                         console.log('📝 YOU (VA) SAID:', userText);
+                        console.log('📝 Raw transcript:', event);
                         setMessages(prev => [...prev, { type: 'staff', text: userText }]);
                         conversationHistoryRef.current.push({ role: 'user', text: userText });
                         setInterimText('');
                         break;
 
                     case 'conversation.item.input_audio_transcription.failed':
-                        console.error('Transcription failed:', event);
+                        console.error('❌ Transcription failed:', event);
+                        console.error('This usually means audio quality issues or API problems');
                         break;
 
                     case 'response.audio_transcript.delta':
@@ -840,11 +844,16 @@ Return a JSON object with this structure:
   "criticalMisses": ["item1", "item2"]
 }`;
 
+                    const apiKey = localStorage.getItem('openai_api_key');
+                    if (!apiKey) {
+                        throw new Error('API key not found');
+                    }
+
                     const response = await fetch('https://api.openai.com/v1/chat/completions', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${prompt('Enter your OpenAI API Key again for scoring:')}`
+                            'Authorization': `Bearer ${apiKey}`
                         },
                         body: JSON.stringify({
                             model: 'gpt-4o',
@@ -868,24 +877,20 @@ Return a JSON object with this structure:
                     
                     setScoreData(scoring);
 
-                    // Log to Supabase
-                    const callLog = {
-                        va_name: vaName || currentUser.name,
-                        office_name: officeName,
-                        doctor_name: doctorName,
+                    // Save call log to localStorage
+                    const callDuration = callStartTime && callEndTime ? 
+                        Math.floor((callEndTime - callStartTime) / 1000) : 0;
+                    
+                    saveCallLog({
                         difficulty: difficulty,
-                        total_score: scoring.totalScore,
-                        patient_booked: scoring.patientBooked,
-                        call_duration_seconds: Math.floor((callEndTime - callStartTime) / 1000),
-                        scores: scoring.scores,
-                        bonus_score: scoring.bonus,
-                        transcript: conversationHistoryRef.current,
-                        completed_at: new Date().toISOString(),
-                        user_role: currentUser.role,
-                        user_password: password
-                    };
-
-                    await logCallToDatabase(callLog);
+                        score: scoring.totalScore,
+                        patientBooked: scoring.patientBooked,
+                        callDuration: `${Math.floor(callDuration / 60)}m ${callDuration % 60}s`,
+                        officeName: officeName,
+                        doctorName: doctorName,
+                        checkpointScores: scoring.scores,
+                        bonusPoints: scoring.bonus
+                    });
 
                 } catch (error) {
                     console.error('Error scoring call:', error);
@@ -1114,15 +1119,25 @@ Return a JSON object with this structure:
                         </div>
                         <div className="content">
                             <div className={`status-box status-${currentStatus}`}>
-                                {currentStatus === 'listening' && '👂 Listening to you...'}
-                                {currentStatus === 'speaking' && '🔊 Patient speaking...'}
+                                {currentStatus === 'listening' && '👂 Listening to you... (SPEAK CLEARLY AND SLOWLY)'}
+                                {currentStatus === 'speaking' && '🔊 Patient speaking... (AI will wait 5 seconds after you stop)'}
                                 {currentStatus === 'thinking' && '💭 Processing...'}
-                                {currentStatus === 'idle' && '⏸️ Ready'}
+                                {currentStatus === 'idle' && '⏸️ Ready - Start speaking when patient answers'}
+                            </div>
+                            
+                            <div style={{padding: '15px', background: '#fff3e0', borderRadius: '10px', marginBottom: '15px', fontSize: '14px'}}>
+                                <strong>💡 Tips for better transcription:</strong>
+                                <ul style={{marginLeft: '20px', marginTop: '8px'}}>
+                                    <li>Speak clearly and at a moderate pace</li>
+                                    <li>Use your office name exactly as written above</li>
+                                    <li>Pause for 2-3 seconds between sentences</li>
+                                    <li>AI waits 5 full seconds after you stop speaking</li>
+                                </ul>
                             </div>
                             
                             {interimText && (
-                                <div style={{padding: '10px', background: '#f0f0f0', borderRadius: '8px', marginBottom: '15px', fontStyle: 'italic'}}>
-                                    Hearing: "{interimText}"
+                                <div style={{padding: '10px', background: '#e3f2fd', borderRadius: '8px', marginBottom: '15px', fontStyle: 'italic', border: '2px solid #2196f3'}}>
+                                    <strong>Hearing you now:</strong> "{interimText}"
                                 </div>
                             )}
                             
@@ -1146,6 +1161,32 @@ Return a JSON object with this structure:
 
             // SCORING SCREEN
             if (gameState === 'scoring') {
+                // Safety check - if no scoreData, show error and allow retry
+                if (!scoreData || !scoreData.scores) {
+                    return (
+                        <div className="container">
+                            <div className="header">
+                                <h1>⚠️ Scoring Error</h1>
+                                <p>Unable to score call</p>
+                            </div>
+                            <div className="content">
+                                <div style={{padding: '20px', background: '#ffebee', borderRadius: '10px', marginBottom: '20px'}}>
+                                    <p><strong>The scoring system encountered an error.</strong></p>
+                                    <p style={{marginTop: '10px'}}>This usually happens if:</p>
+                                    <ul style={{marginLeft: '20px', marginTop: '10px'}}>
+                                        <li>The call was too short</li>
+                                        <li>There was a connection issue</li>
+                                        <li>The AI couldn't analyze the conversation</li>
+                                    </ul>
+                                </div>
+                                <button className="start-btn" onClick={resetGame}>
+                                    Try Another Call
+                                </button>
+                            </div>
+                        </div>
+                    );
+                }
+                
                 const checkpointTotal = Object.values(scoreData.scores).reduce((sum, c) => sum + c.score, 0);
                 const passed = scoreData.totalScore >= 70;
                 
