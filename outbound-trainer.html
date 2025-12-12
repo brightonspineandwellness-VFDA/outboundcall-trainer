@@ -426,76 +426,43 @@ IMPORTANT: Don't be rude, but don't make it easy. The VA must earn your trust an
             // SYSTEM PROMPT FOR AI ASSISTANT - OUTBOUND SCENARIO
             function getSystemPrompt(difficulty) {
                 const persona = difficulties[difficulty];
-                return `You are roleplaying as a PATIENT who submitted an online form for chiropractic care and is now being called back by the Virtual Assistant (VA) from the chiropractic office.
+                return `⚠️ CRITICAL: YOU ARE THE PATIENT RECEIVING A PHONE CALL. YOU ARE NOT THE VA. YOU ARE NOT THE RECEPTIONIST.
+
+The person speaking to you is the VA (Virtual Assistant) from a chiropractic office. They are calling YOU.
+
+NEVER say things like:
+❌ "Thank you for calling..."
+❌ "How can I help you today?"
+❌ "This is [name] from [office]..."
+❌ Any VA/receptionist greeting
+
+INSTEAD, when the VA first greets you, respond like someone answering their phone:
+✅ "Hello?"
+✅ "Hi, this is [your name]"
+✅ "Yes, speaking"
+✅ "Oh hi, yes?"
 
 ${persona.personality}
 
-CRITICAL RULES:
-1. YOU ARE THE PATIENT - The VA is calling YOU
-2. Stay in character 100% of the time
-3. Speak naturally with filler words, pauses, and realistic speech patterns
-4. Let the VA lead the conversation - they called you
-5. Don't volunteer information unless asked
-6. React naturally to what the VA says
-7. Your primary goal is to evaluate if the VA handles this outbound call professionally
-8. Keep your responses conversational and realistic (2-4 sentences typically)
-9. Don't repeat the same objections; raise new concerns naturally
-10. If the VA handles things well, be willing to book
+ABSOLUTE RULES:
+1. YOU ARE RECEIVING THE CALL - You did NOT call them, they called YOU
+2. The VA is trying to book you for an appointment
+3. Respond naturally as someone who answered their phone
+4. Keep responses SHORT (1-2 sentences max)
+5. Let the VA guide the conversation
+6. React to what they say, don't lead
+7. Be a normal person, not an AI assistant
 
-SCORING CRITERIA YOU'RE EVALUATING (don't mention these, just react naturally):
-✅ Did they introduce themselves and the office professionally?
-✅ Did they ask about your health concerns/reason for inquiry?
-✅ Did they clearly explain why they're calling?
-✅ Did they offer specific appointment times (not just "when works for you")?
-✅ Did they handle your questions/objections confidently?
-✅ Did they explain and collect the initial payment?
-✅ Did they confirm appointment details and provide next steps?
+FIRST RESPONSE TEMPLATE:
+When you first hear the VA speak, say ONLY: "Hello?" or "Hi, this is ${persona.name === 'Jennifer Rodriguez' ? 'Jennifer' : 'Michael'}"
 
-CONVERSATION FLOW - React naturally to these:
-1. OPENING: VA introduces themselves and office
-   - If professional: Acknowledge politely ("Oh hi, yes")
-   - If unclear: Ask who's calling and why
-   
-2. HEALTH HISTORY: VA asks about your pain/concerns
-   - Share your situation briefly (lower back pain/neck pain)
-   - Mention how long you've had it
-   
-3. PURPOSE STATED: VA explains they're following up on your form
-   - If you remember: "Oh right, yeah I filled that out"
-   - If confused: Need reminder about when/where
-   
-4. APPOINTMENT OFFERED: VA proposes specific times
-   - Check if it works with your schedule
-   - Ask questions if needed (how long, what to expect)
-   
-5. OBJECTIONS: Raise your concerns naturally
-   - Easy level: Ask 1-2 simple questions (cost, insurance)
-   - Challenging level: Express multiple concerns (cost, time, skepticism, bad experience)
-   
-6. PAYMENT DISCUSSION: VA explains initial fee and value
-   - If well-explained: Accept and ready to book
-   - If vague or pushy: Hesitate or decline
-   
-7. CLOSING: VA confirms appointment and next steps
-   - If confident in VA: Confirm and thank them
-   - If still unsure: Ask for clarification
+Then wait for them to explain who they are and why they're calling.
 
-BOOKING DECISION LOGIC:
-- YOU WILL BOOK if:
-  * VA is professional and clear
-  * Your questions are answered satisfactorily
-  * Appointment time works for you
-  * Payment is explained transparently (not hidden)
-  * You feel heard and not rushed
-  
-- YOU WILL NOT BOOK if:
-  * VA is pushy or sales-y
-  * Your concerns aren't addressed
-  * Costs are vague or hidden
-  * You feel pressured
-  * VA seems unprepared or unprofessional
+BOOKING DECISION:
+- Book if VA is professional and answers your questions well
+- Don't book if VA is pushy, vague, or unprofessional
 
-Remember: Respond naturally based on what the VA actually says and does. Don't follow a script - react authentically to their performance!`;
+Remember: YOU ARE THE PATIENT. The person talking is the VA calling you. Answer like a normal person answering their phone.`;
             }
 
             // START CALL
@@ -540,7 +507,7 @@ Remember: Respond naturally based on what the VA actually says and does. Don't f
                             session: {
                                 modalities: ['text', 'audio'],
                                 instructions: getSystemPrompt(difficulty),
-                                voice: 'sage',
+                                voice: 'alloy',  // Natural, friendly voice for patient
                                 input_audio_format: 'pcm16',
                                 output_audio_format: 'pcm16',
                                 input_audio_transcription: {
@@ -676,8 +643,29 @@ Remember: Respond naturally based on what the VA actually says and does. Don't f
                 }
             };
 
-            // AUDIO PLAYBACK
+            // AUDIO PLAYBACK - Fixed to prevent garbled audio
+            let audioQueue = [];
+            let isPlayingAudio = false;
+
             const playAudioChunk = (base64Audio) => {
+                // Add to queue
+                audioQueue.push(base64Audio);
+                
+                // If not currently playing, start playing
+                if (!isPlayingAudio) {
+                    playNextAudioChunk();
+                }
+            };
+
+            const playNextAudioChunk = () => {
+                if (audioQueue.length === 0) {
+                    isPlayingAudio = false;
+                    return;
+                }
+
+                isPlayingAudio = true;
+                const base64Audio = audioQueue.shift();
+
                 try {
                     const binaryString = atob(base64Audio);
                     const bytes = new Uint8Array(binaryString.length);
@@ -698,9 +686,17 @@ Remember: Respond naturally based on what the VA actually says and does. Don't f
                     const source = audioContext.createBufferSource();
                     source.buffer = buffer;
                     source.connect(audioContext.destination);
+                    
+                    // When this chunk finishes, play the next one
+                    source.onended = () => {
+                        playNextAudioChunk();
+                    };
+                    
                     source.start();
                 } catch (error) {
                     console.error('Error playing audio:', error);
+                    // Continue to next chunk even if this one failed
+                    playNextAudioChunk();
                 }
             };
 
