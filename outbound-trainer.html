@@ -368,6 +368,12 @@
                     name: 'Easy',
                     icon: '😊',
                     description: 'Cooperative Patient',
+                    // LEAD INFORMATION
+                    leadName: 'Jennifer Rodriguez',
+                    leadPhone: '(555) 234-8901',
+                    leadEmail: 'jennifer.rodriguez@email.com',
+                    healthConcern: 'Lower back pain from desk work (2 weeks)',
+                    formSubmitted: 'Yesterday, 2:30 PM',
                     personality: `You are Jennifer Rodriguez, a 34-year-old marketing manager who recently submitted an online inquiry form for chiropractic care. You've been experiencing lower back pain from sitting at your desk all day.
 
 PERSONALITY TRAITS:
@@ -399,6 +405,12 @@ IMPORTANT: Be realistic but cooperative. Show appreciation for the prompt follow
                     name: 'Challenging',
                     icon: '🤔',
                     description: 'Confused/Hesitant Patient',
+                    // LEAD INFORMATION
+                    leadName: 'Michael Chen',
+                    leadPhone: '(555) 789-4562',
+                    leadEmail: 'mchen.construction@email.com',
+                    healthConcern: 'Chronic neck/shoulder pain from heavy lifting (5+ years)',
+                    formSubmitted: '3 days ago, 11:45 AM',
                     personality: `You are Michael Chen, a 45-year-old construction supervisor who filled out an online form 3 days ago but has mixed feelings about following through. You have chronic neck and shoulder pain.
 
 PERSONALITY TRAITS:
@@ -1155,15 +1167,88 @@ Return ONLY a valid JSON object (no markdown, no backticks):
 
                             <button 
                                 className="start-btn" 
-                                onClick={startCall}
+                                onClick={() => setGameState('lead-info')}
                                 disabled={!officeName || !doctorName || !difficulty}
                             >
-                                📞 Start Outbound Call
+                                👤 View Lead & Start Call
                             </button>
 
                             <div style={{marginTop: '20px', padding: '15px', background: '#fff3e0', borderRadius: '10px', fontSize: '14px'}}>
                                 <strong>⚡ Scenario:</strong> You're calling a patient who submitted an online inquiry form. 
                                 Your goal is to build rapport, understand their needs, and book them for their first appointment.
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // LEAD INFO SCREEN - Shows patient details before call
+            if (gameState === 'lead-info') {
+                const lead = difficulties[difficulty];
+                
+                return (
+                    <div className="container">
+                        <div className="header">
+                            <h1>📋 Lead Information</h1>
+                            <p>Review before calling</p>
+                        </div>
+                        <div className="content">
+                            <div style={{background: '#fff', border: '2px solid #16a085', borderRadius: '15px', padding: '25px', marginBottom: '20px'}}>
+                                <div style={{display: 'flex', alignItems: 'center', marginBottom: '20px', borderBottom: '2px solid #f0f0f0', paddingBottom: '15px'}}>
+                                    <div style={{fontSize: '50px', marginRight: '20px'}}>{lead.icon}</div>
+                                    <div>
+                                        <h2 style={{margin: 0, color: '#16a085'}}>{lead.leadName}</h2>
+                                        <div style={{fontSize: '14px', color: '#666', marginTop: '5px'}}>
+                                            Difficulty: <strong>{lead.name}</strong> - {lead.description}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px'}}>
+                                    <div style={{background: '#f8f9fa', padding: '15px', borderRadius: '10px'}}>
+                                        <div style={{fontSize: '12px', color: '#666', marginBottom: '5px'}}>📞 PHONE</div>
+                                        <div style={{fontSize: '18px', fontWeight: 'bold', color: '#2c3e50'}}>{lead.leadPhone}</div>
+                                    </div>
+                                    <div style={{background: '#f8f9fa', padding: '15px', borderRadius: '10px'}}>
+                                        <div style={{fontSize: '12px', color: '#666', marginBottom: '5px'}}>📧 EMAIL</div>
+                                        <div style={{fontSize: '14px', fontWeight: 'bold', color: '#2c3e50', wordBreak: 'break-all'}}>{lead.leadEmail}</div>
+                                    </div>
+                                </div>
+
+                                <div style={{background: '#fff3e0', padding: '15px', borderRadius: '10px', marginBottom: '20px'}}>
+                                    <div style={{fontSize: '12px', color: '#666', marginBottom: '8px'}}>🏥 HEALTH CONCERN</div>
+                                    <div style={{fontSize: '16px', fontWeight: 'bold', color: '#f57c00'}}>{lead.healthConcern}</div>
+                                </div>
+
+                                <div style={{background: '#e3f2fd', padding: '15px', borderRadius: '10px'}}>
+                                    <div style={{fontSize: '12px', color: '#666', marginBottom: '8px'}}>📅 FORM SUBMITTED</div>
+                                    <div style={{fontSize: '16px', fontWeight: 'bold', color: '#1976d2'}}>{lead.formSubmitted}</div>
+                                </div>
+                            </div>
+
+                            <div style={{background: '#e8f5e9', padding: '15px', borderRadius: '10px', marginBottom: '20px', fontSize: '14px'}}>
+                                <strong>📝 Your Office Details:</strong>
+                                <div style={{marginTop: '8px'}}>
+                                    • Office: <strong>{officeName}</strong><br/>
+                                    • Doctor: <strong>Dr. {doctorName}</strong>
+                                    {vaName && <><br/>• Your Name: <strong>{vaName}</strong></>}
+                                </div>
+                            </div>
+
+                            <div style={{display: 'flex', gap: '10px'}}>
+                                <button 
+                                    className="start-btn" 
+                                    onClick={startCall}
+                                    style={{flex: 1, background: '#16a085'}}
+                                >
+                                    📞 Call {lead.leadName.split(' ')[0]} Now
+                                </button>
+                                <button 
+                                    onClick={() => setGameState('setup')}
+                                    style={{padding: '15px 25px', background: '#757575', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold'}}
+                                >
+                                    ← Back
+                                </button>
                             </div>
                         </div>
                     </div>
