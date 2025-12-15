@@ -615,12 +615,16 @@ Remember: A VA named Emma/Sarah/whoever is calling YOU. You pick up YOUR phone a
                                 input_audio_format: 'pcm16',
                                 output_audio_format: 'pcm16',
                                 input_audio_transcription: {
-                                    model: 'whisper-1'
+                                    model: 'whisper-1',
+                                    // Add context prompt to improve accuracy for chiropractic terminology
+                                    prompt: `This is a phone conversation between a virtual assistant at ${officeName} with Dr. ${doctorName} and a patient named ${difficulties[difficulty].leadName}. Common terms include: chiropractic, appointment, consultation, exam, adjustment, insurance, coverage, payment, schedule, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, morning, afternoon, back pain, neck pain, spine, wellness.`,
+                                    language: 'en',  // Explicitly set to English
+                                    temperature: 0.0  // Most deterministic transcription
                                 },
                                 turn_detection: {
                                     type: 'server_vad',
-                                    threshold: 0.8,  // Very high threshold - need to be very sure speech ended
-                                    prefix_padding_ms: 600,  // More buffer
+                                    threshold: 0.7,  // Lowered from 0.8 - more sensitive to catch all speech
+                                    prefix_padding_ms: 800,  // Increased buffer to catch start of speech
                                     silence_duration_ms: 5000  // 5 FULL SECONDS of silence before AI responds
                                 },
                                 temperature: 0.6,  // Lower temperature for more consistent instruction following
@@ -726,7 +730,18 @@ Remember: A VA named Emma/Sarah/whoever is calling YOU. You pick up YOUR phone a
             // AUDIO CAPTURE
             const startAudioCapture = async () => {
                 try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    // Enhanced audio constraints for better transcription quality
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        audio: {
+                            echoCancellation: true,      // Reduce echo
+                            noiseSuppression: true,      // Reduce background noise
+                            autoGainControl: true,       // Normalize volume
+                            channelCount: 1,             // Mono audio
+                            sampleRate: 24000,           // Good quality sample rate
+                            sampleSize: 16               // 16-bit audio
+                        }
+                    });
+                    
                     const mediaRecorder = new MediaRecorder(stream);
                     const audioContext = audioContextRef.current;
                     const source = audioContext.createMediaStreamSource(stream);
@@ -747,9 +762,11 @@ Remember: A VA named Emma/Sarah/whoever is calling YOU. You pick up YOUR phone a
                             }));
                         }
                     };
+                    
+                    console.log('✅ Microphone started with enhanced audio quality');
                 } catch (error) {
                     console.error('Error accessing microphone:', error);
-                    alert('Microphone access denied. Please allow microphone access.');
+                    alert('Microphone access denied. Please allow microphone access and ensure you have a working microphone.');
                 }
             };
 
@@ -1299,12 +1316,14 @@ Return ONLY a valid JSON object (no markdown, no backticks):
                             </div>
                             
                             <div style={{padding: '15px', background: '#fff3e0', borderRadius: '10px', marginBottom: '15px', fontSize: '14px'}}>
-                                <strong>💡 Tips for better transcription:</strong>
+                                <strong>💡 Tips for better transcription accuracy:</strong>
                                 <ul style={{marginLeft: '20px', marginTop: '8px'}}>
-                                    <li>Speak clearly and at a moderate pace</li>
-                                    <li>Use your office name exactly as written above</li>
-                                    <li>Pause for 2-3 seconds between sentences</li>
-                                    <li>AI waits 5 full seconds after you stop speaking</li>
+                                    <li><strong>Speak clearly</strong> at a moderate, steady pace (not too fast)</li>
+                                    <li><strong>Enunciate</strong> office/doctor names carefully: "{officeName}" "Dr. {doctorName}"</li>
+                                    <li><strong>Pause 2-3 seconds</strong> between complete thoughts/sentences</li>
+                                    <li><strong>Avoid filler words</strong> like "um", "uh", "like" - they can confuse transcription</li>
+                                    <li><strong>Use a headset microphone</strong> if possible for better audio quality</li>
+                                    <li>AI waits 5 full seconds after you stop before responding</li>
                                 </ul>
                             </div>
                             
