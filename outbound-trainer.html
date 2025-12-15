@@ -454,9 +454,13 @@ IMPORTANT: Don't be rude, but don't make it easy. The VA must earn your trust an
             // SYSTEM PROMPT FOR AI ASSISTANT - OUTBOUND SCENARIO
             function getSystemPrompt(difficulty) {
                 const persona = difficulties[difficulty];
+                const isJennifer = persona.leadName === 'Jennifer Rodriguez';
+                const patientFirstName = isJennifer ? 'Jennifer' : 'Michael';
+                const patientFullName = isJennifer ? 'JENNIFER RODRIGUEZ' : 'MICHAEL CHEN';
+                
                 return `🚨🚨🚨 CRITICAL - READ THIS FIRST 🚨🚨🚨
 
-YOU ARE ${persona.name === 'Jennifer Rodriguez' ? 'JENNIFER RODRIGUEZ' : 'MICHAEL CHEN'} - THE PATIENT.
+YOU ARE ${patientFullName} - THE PATIENT.
 YOU ARE NOT EMMA. YOU ARE NOT THE VA. YOU ARE NOT THE RECEPTIONIST.
 YOU ARE THE PERSON RECEIVING THE PHONE CALL.
 
@@ -465,6 +469,7 @@ YOU are at home/work and YOUR phone is ringing.
 
 🚫 NEVER EVER SAY THESE THINGS:
 ❌ "Hi Jennifer, this is Emma calling from..."
+❌ "Hi Michael, this is calling from..."
 ❌ "This is [name] calling from Dr. [name]'s office..."
 ❌ "We received your inquiry about..."
 ❌ "How can I help you today?"
@@ -473,7 +478,7 @@ YOU are at home/work and YOUR phone is ringing.
 
 ✅ ONLY SAY THINGS LIKE THIS WHEN YOUR PHONE RINGS:
 ✅ "Hello?" 
-✅ "Hi, this is ${persona.name === 'Jennifer Rodriguez' ? 'Jennifer' : 'Michael'}"
+✅ "Hi, this is ${patientFirstName}"
 ✅ "Speaking"
 ✅ "Yes?"
 
@@ -482,7 +487,7 @@ YOU ARE THE PATIENT. YOUR PHONE RANG. YOU PICKED IT UP. YOU SAY "HELLO?"
 ${persona.personality}
 
 === ABSOLUTE RULES ===
-1. YOU ARE ${persona.name === 'Jennifer Rodriguez' ? 'JENNIFER RODRIGUEZ' : 'MICHAEL CHEN'}
+1. YOU ARE ${patientFullName}
 2. YOU ARE RECEIVING A CALL - you did NOT make this call
 3. SPEAK ONLY IN ENGLISH - no Spanish, Portuguese, or other languages
 4. DO NOT offer appointment times - WAIT for VA to suggest times
@@ -498,7 +503,24 @@ When you hear the VA speak for the first time, you MUST say ONLY:
 
 OR
 
-"Hi, this is ${persona.name === 'Jennifer Rodriguez' ? 'Jennifer' : 'Michael'}"
+"Hi, this is ${patientFirstName}"
+
+DO NOT SAY ANYTHING ELSE FIRST. You don't know who's calling yet!
+
+=== IF YOU CATCH YOURSELF SAYING ===
+"Hi Jennifer, this is..." ← STOP! You ARE Jennifer!
+"Hi Michael, this is..." ← STOP! You ARE Michael!
+"This is calling from..." ← STOP! YOU didn't call anyone!
+"We received your inquiry..." ← STOP! You're not the office!
+
+Remember: A VA named Emma/Sarah/whoever is calling YOU. You pick up YOUR phone and say "Hello?"`;
+            }
+
+"Hello?"
+
+OR
+
+"Hi, this is ${patientFirstName}"
 
 DO NOT SAY ANYTHING ELSE FIRST. You don't know who's calling yet!
 
@@ -512,29 +534,48 @@ Remember: A VA named Emma/Sarah/whoever is calling YOU. You pick up YOUR phone a
 
             // PLAY PHONE RINGING SOUND
             const playPhoneRing = async () => {
+                console.log('🔔 Playing phone ring sound...');
+                
                 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 
-                // Create 3 rings with pauses
-                for (let ring = 0; ring < 3; ring++) {
-                    // Create ring sound (two beeps)
-                    for (let beep = 0; beep < 2; beep++) {
+                // Helper function to play a single beep
+                const playBeep = (startTime, duration, frequency = 480) => {
+                    return new Promise((resolve) => {
                         const oscillator = audioContext.createOscillator();
                         const gainNode = audioContext.createGain();
                         
                         oscillator.connect(gainNode);
                         gainNode.connect(audioContext.destination);
                         
-                        oscillator.frequency.value = 480; // Ring tone frequency
-                        gainNode.gain.value = 0.3; // Volume
+                        oscillator.frequency.value = frequency; // Phone ring frequency
+                        gainNode.gain.value = 0.5; // Louder volume (was 0.3)
                         
-                        const now = audioContext.currentTime + (ring * 2) + (beep * 0.2);
-                        oscillator.start(now);
-                        oscillator.stop(now + 0.15);
+                        oscillator.start(audioContext.currentTime);
+                        oscillator.stop(audioContext.currentTime + duration);
+                        
+                        setTimeout(resolve, duration * 1000);
+                    });
+                };
+                
+                // Play 3 rings (each ring = 2 beeps with small gap)
+                for (let ring = 0; ring < 3; ring++) {
+                    console.log(`🔔 Ring ${ring + 1} of 3...`);
+                    
+                    // First beep
+                    await playBeep(0, 0.4, 480);
+                    await new Promise(resolve => setTimeout(resolve, 200)); // 200ms gap
+                    
+                    // Second beep
+                    await playBeep(0, 0.4, 480);
+                    
+                    // Pause between rings (except after last ring)
+                    if (ring < 2) {
+                        await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second pause
                     }
                 }
                 
-                // Wait for all rings to complete (3 rings * 2 seconds each)
-                await new Promise(resolve => setTimeout(resolve, 6000));
+                console.log('✅ Phone ringing complete');
+                await audioContext.close();
             };
 
             // START CALL
@@ -553,15 +594,17 @@ Remember: A VA named Emma/Sarah/whoever is calling YOU. You pick up YOUR phone a
                 }
 
                 setGameState('calling');
-                setMessages([{ type: 'system', text: '📞 Calling patient... *ring ring ring*' }]);
+                setMessages([{ type: 'system', text: '📞 Calling patient... (Listen for ringing)' }]);
                 conversationHistoryRef.current = [];
                 setCurrentStatus('idle');
 
                 try {
                     // Play actual phone ringing sound
+                    console.log('Starting phone ring...');
                     await playPhoneRing();
+                    console.log('Phone ring completed, patient answered');
                     
-                    setMessages(prev => [...prev, { type: 'system', text: '✅ Patient answered! Start speaking...' }]);
+                    setMessages(prev => [...prev, { type: 'system', text: '✅ Patient picked up! Start speaking now...' }]);
                     setCallStartTime(new Date());
                     
                     // Initialize Audio Context
