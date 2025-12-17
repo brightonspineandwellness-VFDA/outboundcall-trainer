@@ -458,62 +458,59 @@ IMPORTANT: Don't be rude, but don't make it easy. The VA must earn your trust an
                 const patientFirstName = isJennifer ? 'Jennifer' : 'Michael';
                 const patientFullName = isJennifer ? 'JENNIFER RODRIGUEZ' : 'MICHAEL CHEN';
                 
-                return `🚨🚨🚨 CRITICAL - READ THIS FIRST 🚨🚨🚨
+                return `🚨🚨🚨 CRITICAL ROLE ASSIGNMENT 🚨🚨🚨
 
-YOU ARE ${patientFullName} - THE PATIENT.
-YOU ARE NOT EMMA. YOU ARE NOT THE VA. YOU ARE NOT THE RECEPTIONIST.
-YOU ARE THE PERSON RECEIVING THE PHONE CALL.
+YOU ARE ${patientFullName}.
+YOU ARE A PATIENT.
+YOU ARE RECEIVING A PHONE CALL.
+YOU DID NOT MAKE THIS CALL.
 
-The person speaking to you is the VA calling FROM the chiropractic office.
-YOU are at home/work and YOUR phone is ringing.
+SOMEONE IS CALLING YOU. YOU ANSWER YOUR PHONE.
 
-🚫 NEVER EVER SAY THESE THINGS:
-❌ "Hi Jennifer, this is Emma calling from..."
-❌ "Hi Michael, this is calling from..."
-❌ "This is [name] calling from Dr. [name]'s office..."
-❌ "We received your inquiry about..."
-❌ "How can I help you today?"
-❌ ANY introduction of a chiropractic office
-❌ ANY greeting as if YOU are calling THEM
+🚫 YOU ARE NOT:
+❌ A receptionist
+❌ A virtual assistant
+❌ A customer service agent
+❌ An office employee
+❌ Anyone offering help
 
-✅ ONLY SAY THINGS LIKE THIS WHEN YOUR PHONE RINGS:
-✅ "Hello?" 
+🚫 NEVER EVER SAY:
+❌ "How can I help you?"
+❌ "What can I help you with?"
+❌ "How can I assist you?"
+❌ "What can I do for you?"
+❌ "How may I help?"
+❌ "How about we chat about something else?"
+❌ "I'm here to help"
+❌ Any offer of assistance or help
+
+✅ YOU ONLY SAY:
+✅ "Hello?"
 ✅ "Hi, this is ${patientFirstName}"
-✅ "Speaking"
 ✅ "Yes?"
+✅ "Speaking"
+✅ Answer their questions about YOUR health/schedule
+✅ React to what THEY say
 
-YOU ARE THE PATIENT. YOUR PHONE RANG. YOU PICKED IT UP. YOU SAY "HELLO?"
+REMEMBER: Someone called YOU. You're just a normal person answering your phone. You don't offer help. You're not working. You're receiving a call about YOUR health appointment.
 
 ${persona.personality}
 
 === ABSOLUTE RULES ===
-1. YOU ARE ${patientFullName}
-2. YOU ARE RECEIVING A CALL - you did NOT make this call
-3. SPEAK ONLY IN ENGLISH - no Spanish, Portuguese, or other languages
-4. DO NOT offer appointment times - WAIT for VA to suggest times
-5. When VA offers times, pick one: "Monday at 10am works" or "Wednesday is better"
-6. DO NOT volunteer your schedule or suggest your own times
-7. Keep responses SHORT - 1 to 2 sentences maximum
-8. You are at home/work, NOT at the chiropractic office
+1. YOU ARE ${patientFullName} - A PATIENT, NOT AN EMPLOYEE
+2. YOU ARE RECEIVING A CALL - Someone called you, you answer naturally
+3. SPEAK ONLY IN ENGLISH - no other languages
+4. DO NOT offer to help - you're the one BEING helped
+5. DO NOT offer appointment times - WAIT for them to suggest times
+6. Keep responses SHORT - 1 to 2 sentences
+7. React naturally as someone getting a call about their health concern
 
-=== YOUR FIRST RESPONSE MUST BE ===
-When you hear the VA speak for the first time, you MUST say ONLY:
+FIRST RESPONSE WHEN CALL STARTS:
+Say ONLY: "Hello?" OR "Hi, this is ${patientFirstName}"
 
-"Hello?"
+Then WAIT for them to explain who they are and why they're calling.
 
-OR
-
-"Hi, this is ${patientFirstName}"
-
-DO NOT SAY ANYTHING ELSE FIRST. You don't know who's calling yet!
-
-=== IF YOU CATCH YOURSELF SAYING ===
-"Hi Jennifer, this is..." ← STOP! You ARE Jennifer!
-"Hi Michael, this is..." ← STOP! You ARE Michael!
-"This is calling from..." ← STOP! YOU didn't call anyone!
-"We received your inquiry..." ← STOP! You're not the office!
-
-Remember: A VA named Emma/Sarah/whoever is calling YOU. You pick up YOUR phone and say "Hello?"`;
+DO NOT act like a receptionist. DO NOT offer help. You're a patient receiving a call.`;
             }
 
             // PLAY PHONE RINGING SOUND
@@ -605,29 +602,25 @@ Remember: A VA named Emma/Sarah/whoever is calling YOU. You pick up YOUR phone a
                     ws.onopen = () => {
                         console.log('Connected to OpenAI Realtime API');
                         
-                        // Configure session with longer silence duration to prevent interruptions
+                        // Configure session - NOTE: Whisper prompt/language/temp not supported in Realtime API
                         ws.send(JSON.stringify({
                             type: 'session.update',
                             session: {
                                 modalities: ['text', 'audio'],
                                 instructions: getSystemPrompt(difficulty),
-                                voice: 'alloy',  // Natural, friendly voice for patient
+                                voice: 'alloy',
                                 input_audio_format: 'pcm16',
                                 output_audio_format: 'pcm16',
                                 input_audio_transcription: {
-                                    model: 'whisper-1',
-                                    // Add context prompt to improve accuracy for chiropractic terminology
-                                    prompt: `This is a phone conversation between a virtual assistant at ${officeName} with Dr. ${doctorName} and a patient named ${difficulties[difficulty].leadName}. Common terms include: chiropractic, appointment, consultation, exam, adjustment, insurance, coverage, payment, schedule, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, morning, afternoon, back pain, neck pain, spine, wellness.`,
-                                    language: 'en',  // Explicitly set to English
-                                    temperature: 0.0  // Most deterministic transcription
+                                    model: 'whisper-1'
                                 },
                                 turn_detection: {
                                     type: 'server_vad',
-                                    threshold: 0.7,  // Lowered from 0.8 - more sensitive to catch all speech
-                                    prefix_padding_ms: 800,  // Increased buffer to catch start of speech
-                                    silence_duration_ms: 5000  // 5 FULL SECONDS of silence before AI responds
+                                    threshold: 0.7,
+                                    prefix_padding_ms: 800,
+                                    silence_duration_ms: 5000
                                 },
-                                temperature: 0.6,  // Lower temperature for more consistent instruction following
+                                temperature: 0.6,
                                 max_response_output_tokens: 4096
                             }
                         }));
@@ -730,15 +723,12 @@ Remember: A VA named Emma/Sarah/whoever is calling YOU. You pick up YOUR phone a
             // AUDIO CAPTURE
             const startAudioCapture = async () => {
                 try {
-                    // Enhanced audio constraints for better transcription quality
+                    // Simplified but enhanced audio constraints
                     const stream = await navigator.mediaDevices.getUserMedia({ 
                         audio: {
-                            echoCancellation: true,      // Reduce echo
-                            noiseSuppression: true,      // Reduce background noise
-                            autoGainControl: true,       // Normalize volume
-                            channelCount: 1,             // Mono audio
-                            sampleRate: 24000,           // Good quality sample rate
-                            sampleSize: 16               // 16-bit audio
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true
                         }
                     });
                     
@@ -763,7 +753,7 @@ Remember: A VA named Emma/Sarah/whoever is calling YOU. You pick up YOUR phone a
                         }
                     };
                     
-                    console.log('✅ Microphone started with enhanced audio quality');
+                    console.log('✅ Microphone started with audio enhancements');
                 } catch (error) {
                     console.error('Error accessing microphone:', error);
                     alert('Microphone access denied. Please allow microphone access and ensure you have a working microphone.');
@@ -1316,13 +1306,12 @@ Return ONLY a valid JSON object (no markdown, no backticks):
                             </div>
                             
                             <div style={{padding: '15px', background: '#fff3e0', borderRadius: '10px', marginBottom: '15px', fontSize: '14px'}}>
-                                <strong>💡 Tips for better transcription accuracy:</strong>
+                                <strong>💡 Tips for Better Call Quality:</strong>
                                 <ul style={{marginLeft: '20px', marginTop: '8px'}}>
-                                    <li><strong>Speak clearly</strong> at a moderate, steady pace (not too fast)</li>
-                                    <li><strong>Enunciate</strong> office/doctor names carefully: "{officeName}" "Dr. {doctorName}"</li>
-                                    <li><strong>Pause 2-3 seconds</strong> between complete thoughts/sentences</li>
-                                    <li><strong>Avoid filler words</strong> like "um", "uh", "like" - they can confuse transcription</li>
-                                    <li><strong>Use a headset microphone</strong> if possible for better audio quality</li>
+                                    <li><strong>Speak clearly</strong> at a moderate, steady pace</li>
+                                    <li><strong>Pause 2-3 seconds</strong> between sentences</li>
+                                    <li><strong>Avoid filler words</strong> like "um", "uh", "like" when possible</li>
+                                    <li><strong>Use a headset microphone</strong> for best audio quality</li>
                                     <li>AI waits 5 full seconds after you stop before responding</li>
                                 </ul>
                             </div>
