@@ -874,55 +874,77 @@ CONTEXT:
 - Difficulty: ${difficulty}
 
 IMPORTANT: Evaluate based on what actually happened in the conversation above.
+IMPORTANT: Score the THOUGHT PROCESS and INTENT, not word-for-word script matching.
 
 SCORE THE FOLLOWING 7 CHECKPOINTS (0-10 points each):
 
-1. PROFESSIONAL INTRODUCTION (0-10):
-   - Did VA clearly state their name and the office name?
-   - Was the greeting professional and friendly?
-   - Did they verify they were speaking with the right person?
+1. VA INTRODUCTION & PURPOSE (0-10):
+   THOUGHT PROCESS: Did VA introduce themselves, state office name, and explain why they're calling (form follow-up)?
+   - Clearly identified who they are (name + office)?
+   - Mentioned the patient filled out a form/quiz for their condition?
+   - Professional and friendly tone?
+   - Asked "May I speak with [patient]?" or "Do you have a minute?"
 
-2. HEALTH HISTORY INQUIRY (0-10):
-   - Did VA ask about patient's health concerns or pain?
-   - Did they show genuine interest in understanding the situation?
+2. PATIENT CONFIRMATION (0-10):
+   THOUGHT PROCESS: Did VA confirm they're speaking with the right person and get permission to proceed?
+   - Verified patient's name?
+   - Asked if they have time to talk ("Do you have a minute?")?
+   - Got patient buy-in before continuing?
 
-3. PURPOSE STATED (0-10):
-   - Did VA clearly explain they were following up on the patient's inquiry form?
-   - Was the purpose of the call immediately clear?
+3. DURATION OF PAIN INQUIRY (0-10):
+   THOUGHT PROCESS: Did VA ask how long the patient has been dealing with their condition?
+   - Asked about timeline ("How long have you been dealing with...")?
+   - Showed empathy for patient's situation?
+   - Made patient feel heard about their struggle?
 
-4. SPECIFIC APPOINTMENT OPTIONS (0-10):
-   - Did VA propose specific dates and times (not just "what works for you")?
-   - Did they offer multiple options?
+4. TREATMENTS TRIED INQUIRY (0-10):
+   THOUGHT PROCESS: Did VA ask what the patient has tried to get relief?
+   - Asked what treatments/methods patient has attempted?
+   - Showed understanding that patient has been seeking help?
+   - Acknowledged frustration of things not working?
+   - Positioned doctor as expert who can help?
 
-5. OBJECTION HANDLING (0-10):
-   - Did VA address patient questions confidently?
-   - How well did they handle cost concerns or questions?
+5. SCHEDULING OPTIONS PROVIDED (0-10):
+   THOUGHT PROCESS: Did VA offer specific appointment times with choices?
+   - Asked when patient wants to come in ("How soon would you like to get in?")?
+   - Offered time-of-day options (morning vs afternoon)?
+   - Offered day-of-week options (early vs later in week)?
+   - Gave 2 specific appointment times to choose from?
 
-6. PAYMENT COLLECTION (0-10):
-   - Did VA clearly explain the initial payment amount and what it includes?
-   - Did they explain the value?
+6. FIRST VISIT FEE COLLECTION & EXPLANATION (0-10):
+   THOUGHT PROCESS: Did VA explain the $59 fee, the charity reason, and collect payment?
+   - Explained new patient special ($59 vs regular $350)?
+   - Mentioned Perkins School for the Blind charity reason?
+   - Asked for payment to secure the appointment?
+   - Explained why payment is needed (to hold the spot)?
+   - Asked "Visa or Mastercard?"?
+   - Handled objections professionally if any came up?
 
-7. CLOSING & CONFIRMATION (0-10):
-   - Did VA confirm the appointment details?
-   - Did they explain next steps?
+7. CLOSING & APPOINTMENT CONFIRMATION (0-10):
+   THOUGHT PROCESS: Did VA confirm all details and create excitement for the visit?
+   - Confirmed appointment date and time?
+   - Confirmed patient's name and contact info?
+   - Mentioned sending paperwork to email?
+   - Professional and warm closing ("Look forward to meeting you")?
+   - Patient left feeling clear about next steps?
 
 BONUS POINTS (up to 30 points total):
-- Communication Excellence (0-10): Clarity, pace, tone
-- Professionalism (0-10): Courtesy, confidence, empathy
-- Problem Solving (0-10): Flexibility, handling objections
+- Communication Excellence (0-10): Clear speech, good pace, natural tone, listened well
+- Professionalism (0-10): Courteous, confident, empathetic, respectful
+- Problem Solving (0-10): Handled objections smoothly, flexible, patient-focused
 
 ALSO DETERMINE:
-- Did the patient ultimately BOOK the appointment? (true/false)
+- Did the patient ultimately BOOK the appointment AND provide payment? (true/false)
 
 Return ONLY a valid JSON object (no markdown, no backticks):
 {
   "scores": {
     "introduction": {"score": 0, "note": ""},
-    "healthHistory": {"score": 0, "note": ""},
-    "purposeStated": {"score": 0, "note": ""},
-    "appointmentOptions": {"score": 0, "note": ""},
-    "objectionHandling": {"score": 0, "note": ""},
-    "paymentCollection": {"score": 0, "note": ""},
+    "patientConfirmation": {"score": 0, "note": ""},
+    "durationInquiry": {"score": 0, "note": ""},
+    "treatmentsInquiry": {"score": 0, "note": ""},
+    "schedulingOptions": {"score": 0, "note": ""},
+    "feeCollection": {"score": 0, "note": ""},
     "closingConfirmation": {"score": 0, "note": ""}
   },
   "bonus": 0,
@@ -1002,11 +1024,11 @@ Return ONLY a valid JSON object (no markdown, no backticks):
                     const fallbackScoring = {
                         scores: {
                             introduction: {score: 5, note: 'Could not evaluate - scoring error'},
-                            healthHistory: {score: 5, note: 'Could not evaluate - scoring error'},
-                            purposeStated: {score: 5, note: 'Could not evaluate - scoring error'},
-                            appointmentOptions: {score: 5, note: 'Could not evaluate - scoring error'},
-                            objectionHandling: {score: 5, note: 'Could not evaluate - scoring error'},
-                            paymentCollection: {score: 5, note: 'Could not evaluate - scoring error'},
+                            patientConfirmation: {score: 5, note: 'Could not evaluate - scoring error'},
+                            durationInquiry: {score: 5, note: 'Could not evaluate - scoring error'},
+                            treatmentsInquiry: {score: 5, note: 'Could not evaluate - scoring error'},
+                            schedulingOptions: {score: 5, note: 'Could not evaluate - scoring error'},
+                            feeCollection: {score: 5, note: 'Could not evaluate - scoring error'},
                             closingConfirmation: {score: 5, note: 'Could not evaluate - scoring error'}
                         },
                         bonus: 0,
@@ -1450,13 +1472,13 @@ Return ONLY a valid JSON object (no markdown, no backticks):
                                 
                                 {Object.entries(scoreData.scores).map(([key, data]) => {
                                     const labels = {
-                                        introduction: 'Professional Introduction',
-                                        healthHistory: 'Asked About Health History',
-                                        purposeStated: 'Clearly Stated Purpose',
-                                        appointmentOptions: 'Proposed Specific Times',
-                                        objectionHandling: 'Handled Objections Well',
-                                        paymentCollection: 'Collected Initial Payment',
-                                        closingConfirmation: 'Confirmed & Closed Professionally'
+                                        introduction: '1. VA Introduction & Purpose',
+                                        patientConfirmation: '2. Patient Confirmation',
+                                        durationInquiry: '3. Duration of Pain Inquiry',
+                                        treatmentsInquiry: '4. Treatments Tried Inquiry',
+                                        schedulingOptions: '5. Scheduling Options Provided',
+                                        feeCollection: '6. First Visit Fee Collection & Explanation',
+                                        closingConfirmation: '7. Closing & Appointment Confirmation'
                                     };
                                     
                                     return (
